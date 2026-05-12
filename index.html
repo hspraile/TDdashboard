@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TimeDoctor Hours Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #F4F3EF;
+    --surface: #FFFFFF;
+    --surface2: #EDECE8;
+    --border: rgba(0,0,0,0.08);
+    --text: #1A1A18;
+    --text2: #6B6B67;
+    --text3: #9F9F9B;
+    --blue: #185FA5;
+    --blue-light: #E6F1FB;
+    --green: #0F6E56;
+    --green-light: #E1F5EE;
+    --amber: #854F0B;
+    --amber-light: #FAEEDA;
+    --purple: #534AB7;
+    --purple-light: #EEEDFE;
+    --red: #A32D2D;
+    --red-light: #FCEBEB;
+    --bar-total: #378ADD;
+    --bar-computer: #1D9E75;
+    --bar-mobile: #7F77DD;
+    --bar-manual: #EF9F27;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 2rem 1.5rem;
+  }
+
+  .dashboard { max-width: 860px; margin: 0 auto; }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .header-left h1 {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+    color: var(--text);
+  }
+
+  .date-range {
+    font-size: 13px;
+    color: var(--text2);
+    margin-top: 4px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .last-updated {
+    font-size: 12px;
+    color: var(--text3);
+    text-align: right;
+  }
+
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin-bottom: 1.5rem;
+  }
+
+  .metric {
+    background: var(--surface);
+    border-radius: var(--radius-sm);
+    padding: 1rem 1.1rem;
+    border: 0.5px solid var(--border);
+  }
+
+  .metric-label {
+    font-size: 11px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 6px;
+  }
+
+  .metric-value {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 10px;
+  }
+
+  .user-card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.1rem 1.25rem;
+    margin-bottom: 10px;
+    transition: box-shadow 0.2s;
+  }
+
+  .user-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+
+  .user-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .user-name-wrap { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+  .user-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .pill {
+    font-size: 11px;
+    padding: 2px 9px;
+    border-radius: 99px;
+    font-weight: 500;
+  }
+
+  .pill-green { background: var(--green-light); color: var(--green); }
+  .pill-amber { background: var(--amber-light); color: var(--amber); }
+  .pill-red   { background: var(--red-light);   color: var(--red); }
+
+  .user-right { display: flex; align-items: center; gap: 10px; }
+
+  .user-total {
+    font-size: 13px;
+    font-weight: 500;
+    font-family: 'DM Mono', monospace;
+    color: var(--text2);
+  }
+
+  .toggle-btn {
+    font-size: 12px;
+    color: var(--text3);
+    background: none;
+    border: 0.5px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    padding: 3px 9px;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .toggle-btn:hover { background: var(--surface2); color: var(--text2); }
+
+  .bar-group { margin-bottom: 8px; }
+
+  .bar-meta {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+
+  .bar-name { font-size: 12px; color: var(--text2); }
+  .bar-time { font-size: 12px; font-family: 'DM Mono', monospace; color: var(--text2); }
+
+  .bar-track {
+    height: 7px;
+    background: var(--surface2);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 99px;
+    transition: width 0.7s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  .detail-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 0.5px solid var(--border);
+  }
+
+  .detail-item { text-align: center; }
+  .detail-val { font-size: 13px; font-weight: 500; font-family: 'DM Mono', monospace; color: var(--text); }
+  .detail-lbl { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+  .loading {
+    text-align: center;
+    padding: 3rem;
+    color: var(--text3);
+    font-size: 14px;
+  }
+
+  .error-msg {
+    background: var(--red-light);
+    color: var(--red);
+    border-radius: var(--radius-sm);
+    padding: 1rem 1.25rem;
+    font-size: 13px;
+    margin-bottom: 1rem;
+  }
+
+  .legend {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+  }
+
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text2); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+</style>
+</head>
+<body>
+<div class="dashboard">
+
+  <header>
+    <div class="header-left">
+      <h1>TimeDoctor Hours Dashboard</h1>
+      <div class="date-range" id="date-range">Loading...</div>
+    </div>
+    <div class="last-updated" id="last-updated"></div>
+  </header>
+
+  <div class="summary-grid" id="summary-grid">
+    <div class="loading">Fetching data from Google Sheets...</div>
+  </div>
+
+  <div class="section-label">Tracked hours by user</div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--bar-total)"></div>Total</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--bar-computer)"></div>Computer</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--bar-mobile)"></div>Mobile</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--bar-manual)"></div>Manual</div>
+  </div>
+
+  <div id="user-list"></div>
+</div>
+
+<script>
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTSUjSfnm45LXHspq6CfBs3gykuad9wJJ7tMLi-DJzw3-vEeAw-jmyHfiL2fDN91lDpx2YbzY45DZBY/pub?gid=0&single=true&output=csv";
+
+function parseCSV(text) {
+  const lines = text.trim().split("\n");
+  const headers = lines[0].split(",").map(h => h.trim().replace(/"/g, ""));
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const vals = lines[i].split(",").map(v => v.trim().replace(/"/g, ""));
+    if (vals.length < 2 || vals[0] === "") continue;
+    const obj = {};
+    headers.forEach((h, idx) => obj[h] = vals[idx] || "");
+    rows.push(obj);
+  }
+  return { headers, rows };
+}
+
+function timeToSeconds(t) {
+  if (!t || t === "00:00:00" || t === "0:00:00") return 0;
+  const parts = t.split(":").map(Number);
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  return 0;
+}
+
+function fmtH(s) {
+  return (s / 3600).toFixed(1) + "h";
+}
+
+function ratio(val, max) {
+  return max === 0 ? 0 : Math.min(100, Math.round((val / max) * 100));
+}
+
+function getDateRange(rows) {
+  // Try to find "Last updated:" row for timestamp
+  for (const row of rows) {
+    const vals = Object.values(row);
+    if (vals[0] && vals[0].toLowerCase().includes("last updated")) {
+      return vals[1] || "";
+    }
+  }
+  return "";
+}
+
+function renderDashboard(rows) {
+  // Filter out "Last updated" and "No data" rows, keep real user rows
+  const users = rows.filter(r => {
+    const uid = r["User ID"] || r[Object.keys(r)[0]] || "";
+    return uid && !uid.toLowerCase().includes("last updated") && uid.length > 3;
+  });
+
+  // Find timestamp row
+  const tsRow = rows.find(r => {
+    const uid = r["User ID"] || r[Object.keys(r)[0]] || "";
+    return uid.toLowerCase().includes("last updated");
+  });
+
+  // Get keys — flexible column mapping
+  const keys = Object.keys(users[0] || {});
+  const col = (row, ...names) => {
+    for (const n of names) {
+      const k = keys.find(k => k.toLowerCase().replace(/\s/g,"") === n.toLowerCase().replace(/\s/g,""));
+      if (k && row[k] !== undefined) return row[k];
+    }
+    return "";
+  };
+
+  // Parse user data
+  const data = users.map(r => ({
+    userId: col(r, "User ID", "userId"),
+    name: col(r, "Name", "userName"),
+    computer: timeToSeconds(col(r, "Computer", "computer")),
+    mobile: timeToSeconds(col(r, "Mobile", "mobile")),
+    manual: timeToSeconds(col(r, "Manual", "manual")),
+    offcomputer: timeToSeconds(col(r, "Off Computer", "offcomputer")),
+    total: timeToSeconds(col(r, "Total", "total")),
+    computerRatio: col(r, "Computer Ratio", "computerRatio"),
+    paidBreak: timeToSeconds(col(r, "Paid Break", "paidBreak")),
+    unpaidBreak: timeToSeconds(col(r, "Unpaid Break", "unpaidBreak")),
+    paidLeave: timeToSeconds(col(r, "Paid Leave", "paidLeave")),
+    rawTotal: col(r, "Total", "total"),
+  })).filter(u => u.name && u.name !== "No data");
+
+  if (data.length === 0) {
+    document.getElementById("user-list").innerHTML = `<div class="error-msg">No user data found. Make sure your sheet has data rows.</div>`;
+    return;
+  }
+
+  const sorted = [...data].sort((a, b) => b.total - a.total);
+  const maxTotal = Math.max(...sorted.map(u => u.total));
+  const totalAll = sorted.reduce((a, u) => a + u.total, 0);
+  const totalComp = sorted.reduce((a, u) => a + u.computer, 0);
+  const avgRatio = totalAll > 0 ? Math.round((totalComp / totalAll) * 100) : 0;
+
+  // Summary cards
+  document.getElementById("summary-grid").innerHTML = [
+    { label: "Total tracked", value: fmtH(totalAll) },
+    { label: "Team members", value: sorted.length },
+    { label: "Avg computer ratio", value: avgRatio + "%" },
+    { label: "Top performer", value: sorted[0]?.name.split(" ")[0] || "-" },
+  ].map(c => `
+    <div class="metric">
+      <div class="metric-label">${c.label}</div>
+      <div class="metric-value">${c.value}</div>
+    </div>
+  `).join("");
+
+  // Date range
+  const now = new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila", dateStyle: "medium", timeStyle: "short" });
+  document.getElementById("last-updated").innerHTML = `Last refreshed<br>${now}`;
+
+  if (tsRow) {
+    const tsVal = Object.values(tsRow)[1] || "";
+    document.getElementById("date-range").textContent = tsVal ? `Updated: ${tsVal}` : "Live data from Google Sheets";
+  } else {
+    document.getElementById("date-range").textContent = "Live data from Google Sheets";
+  }
+
+  // User cards
+  const list = document.getElementById("user-list");
+  list.innerHTML = "";
+
+  sorted.forEach((u, i) => {
+    const compPct = u.total > 0 ? Math.round((u.computer / u.total) * 100) : 0;
+    const pillClass = compPct >= 80 ? "pill-green" : compPct >= 50 ? "pill-amber" : "pill-red";
+    const id = `det-${i}`;
+
+    const card = document.createElement("div");
+    card.className = "user-card";
+    card.innerHTML = `
+      <div class="user-header">
+        <div class="user-name-wrap">
+          <span class="user-name">${u.name}</span>
+          <span class="pill ${pillClass}">${compPct}% computer</span>
+        </div>
+        <div class="user-right">
+          <span class="user-total">${u.rawTotal || fmtH(u.total)}</span>
+          <button class="toggle-btn" onclick="toggleDetail('${id}', this)">details ▾</button>
+        </div>
+      </div>
+
+      <div class="bar-group">
+        <div class="bar-meta"><span class="bar-name">Total hours</span><span class="bar-time">${fmtH(u.total)}</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${ratio(u.total,maxTotal)}%;background:var(--bar-total);"></div></div>
+      </div>
+      <div class="bar-group">
+        <div class="bar-meta"><span class="bar-name">Computer</span><span class="bar-time">${fmtH(u.computer)}</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${ratio(u.computer,u.total)}%;background:var(--bar-computer);"></div></div>
+      </div>
+      <div class="bar-group">
+        <div class="bar-meta"><span class="bar-name">Mobile</span><span class="bar-time">${fmtH(u.mobile)}</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${ratio(u.mobile,u.total)}%;background:var(--bar-mobile);"></div></div>
+      </div>
+      <div class="bar-group">
+        <div class="bar-meta"><span class="bar-name">Manual</span><span class="bar-time">${fmtH(u.manual)}</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${ratio(u.manual,u.total)}%;background:var(--bar-manual);"></div></div>
+      </div>
+
+      <div class="detail-grid" id="${id}" style="display:none;">
+        <div class="detail-item"><div class="detail-val">${fmtH(u.offcomputer)}</div><div class="detail-lbl">Off computer</div></div>
+        <div class="detail-item"><div class="detail-val">${fmtH(u.paidBreak)}</div><div class="detail-lbl">Paid break</div></div>
+        <div class="detail-item"><div class="detail-val">${fmtH(u.unpaidBreak)}</div><div class="detail-lbl">Unpaid break</div></div>
+        <div class="detail-item"><div class="detail-val">${fmtH(u.paidLeave)}</div><div class="detail-lbl">Paid leave</div></div>
+        <div class="detail-item"><div class="detail-val">${u.rawTotal || fmtH(u.total)}</div><div class="detail-lbl">Total (HH:MM:SS)</div></div>
+        <div class="detail-item"><div class="detail-val">${compPct}%</div><div class="detail-lbl">Computer ratio</div></div>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+}
+
+function toggleDetail(id, btn) {
+  const el = document.getElementById(id);
+  const open = el.style.display === "grid";
+  el.style.display = open ? "none" : "grid";
+  btn.textContent = open ? "details ▾" : "hide ▴";
+}
+
+async function loadData() {
+  try {
+    const res = await fetch(CSV_URL);
+    if (!res.ok) throw new Error("Failed to fetch sheet: " + res.status);
+    const text = await res.text();
+    const { rows } = parseCSV(text);
+    renderDashboard(rows);
+  } catch (err) {
+    document.getElementById("summary-grid").innerHTML = "";
+    document.getElementById("user-list").innerHTML = `
+      <div class="error-msg">
+        Could not load data: ${err.message}<br>
+        Make sure your Google Sheet is published to the web as CSV.
+      </div>`;
+    document.getElementById("date-range").textContent = "Error loading data";
+  }
+}
+
+loadData();
+</script>
+</body>
+</html>
