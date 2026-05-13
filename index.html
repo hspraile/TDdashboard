@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TimeDoctor Hours Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #F4F3EF; --surface: #FFFFFF; --surface2: #EDECE8;
+    --border: rgba(0,0,0,0.08); --text: #1A1A18; --text2: #6B6B67; --text3: #9F9F9B;
+    --blue: #185FA5; --blue-light: #E6F1FB;
+    --green: #0F6E56; --green-light: #E1F5EE;
+    --amber: #854F0B; --amber-light: #FAEEDA;
+    --red: #A32D2D; --red-light: #FCEBEB;
+    --bar-total: #378ADD; --bar-computer: #1D9E75; --bar-mobile: #7F77DD; --bar-manual: #EF9F27;
+    --radius: 12px; --radius-sm: 8px;
+  }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 2rem 1.5rem; }
+  .dashboard { max-width: 920px; margin: 0 auto; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+  .header-left h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.3px; }
+  .date-range { font-size: 12px; color: var(--text2); margin-top: 4px; font-family: 'DM Mono', monospace; }
+  .last-updated { font-size: 12px; color: var(--text3); text-align: right; }
+
+  .filter-bar { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1.5rem; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+  .filter-group { display: flex; flex-direction: column; gap: 5px; }
+  .filter-group label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; }
+  .preset-group { display: flex; gap: 6px; flex-wrap: wrap; }
+  .preset-btn { font-family: 'DM Sans', sans-serif; font-size: 12px; padding: 6px 12px; border-radius: var(--radius-sm); border: 0.5px solid var(--border); background: var(--surface2); color: var(--text2); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .preset-btn:hover { background: var(--blue-light); color: var(--blue); border-color: var(--blue); }
+  .preset-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+  input[type="date"] { font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--text); background: var(--surface2); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 6px 10px; }
+  input[type="date"]:focus { outline: none; border-color: var(--blue); background: var(--surface); }
+
+  .date-nav { display: flex; align-items: center; gap: 4px; }
+  .nav-btn { font-size: 14px; width: 28px; height: 32px; border-radius: var(--radius-sm); border: 0.5px solid var(--border); background: var(--surface2); color: var(--text2); cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .nav-btn:hover { background: var(--blue-light); color: var(--blue); border-color: var(--blue); }
+
+  /* Timezone searchable dropdown */
+  .tz-wrap { position: relative; min-width: 260px; }
+  .tz-input { font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--text); background: var(--surface2); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 6px 10px; width: 100%; }
+  .tz-input:focus { outline: none; border-color: var(--blue); background: var(--surface); }
+  .tz-dropdown { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-sm); max-height: 240px; overflow-y: auto; z-index: 200; box-shadow: 0 4px 20px rgba(0,0,0,0.12); display: none; }
+  .tz-dropdown.open { display: block; }
+  .tz-group-label { font-size: 10px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; padding: 8px 10px 4px; background: var(--surface2); position: sticky; top: 0; z-index: 1; }
+  .tz-option { font-size: 12px; color: var(--text); padding: 6px 10px; cursor: pointer; transition: background 0.1s; display: flex; justify-content: space-between; align-items: center; }
+  .tz-option:hover { background: var(--blue-light); color: var(--blue); }
+  .tz-option.selected { background: var(--blue); color: #fff; }
+  .tz-option.hidden { display: none; }
+  .tz-utc { font-size: 11px; opacity: 0.7; font-family: 'DM Mono', monospace; }
+
+  .fetch-btn { font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; padding: 7px 20px; border-radius: var(--radius-sm); border: none; background: var(--blue); color: #fff; cursor: pointer; transition: opacity 0.15s; }
+  .fetch-btn:hover { opacity: 0.85; }
+  .fetch-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
+  .metric { background: var(--surface); border-radius: var(--radius-sm); padding: 1rem 1.1rem; border: 0.5px solid var(--border); }
+  .metric-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .metric-value { font-size: 20px; font-weight: 600; font-family: 'DM Mono', monospace; }
+
+  .toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+  .section-label { font-size: 11px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; }
+  .user-count { font-size: 12px; color: var(--text3); }
+  .filter-wrap { display: flex; align-items: center; gap: 8px; }
+  .filter-label { font-size: 12px; color: var(--text2); }
+  select { font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--text); background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 6px 28px 6px 10px; cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B6B67' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; min-width: 200px; }
+  select:focus { outline: none; border-color: var(--blue); }
+
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 1rem; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text2); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+
+  .user-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 1.1rem 1.25rem; margin-bottom: 10px; transition: box-shadow 0.2s; }
+  .user-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+  .user-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+  .user-name-wrap { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .user-name { font-size: 14px; font-weight: 600; }
+  .pill { font-size: 11px; padding: 2px 9px; border-radius: 99px; font-weight: 500; }
+  .pill-green { background: var(--green-light); color: var(--green); }
+  .pill-amber { background: var(--amber-light); color: var(--amber); }
+  .pill-red   { background: var(--red-light);   color: var(--red); }
+  .user-right { display: flex; align-items: center; gap: 10px; }
+  .user-total { font-size: 13px; font-weight: 500; font-family: 'DM Mono', monospace; color: var(--text2); }
+  .toggle-btn { font-size: 12px; color: var(--text3); background: none; border: 0.5px solid var(--border); border-radius: 6px; cursor: pointer; padding: 3px 9px; transition: background 0.15s; }
+  .toggle-btn:hover { background: var(--surface2); }
+  .bar-group { margin-bottom: 8px; }
+  .bar-meta { display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .bar-name { font-size: 12px; color: var(--text2); }
+  .bar-time { font-size: 12px; font-family: 'DM Mono', monospace; color: var(--text2); }
+  .bar-track { height: 7px; background: var(--surface2); border-radius: 99px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 99px; transition: width 0.7s cubic-bezier(0.4,0,0.2,1); }
+  .detail-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 0.5px solid var(--border); }
+  .detail-item { text-align: center; }
+  .detail-val { font-size: 13px; font-weight: 500; font-family: 'DM Mono', monospace; }
+  .detail-lbl { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+  .loading { text-align: center; padding: 3rem; color: var(--text3); font-size: 14px; }
+  .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 8px; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error-msg { background: var(--red-light); color: var(--red); border-radius: var(--radius-sm); padding: 1rem 1.25rem; font-size: 13px; }
+  .no-results { text-align: center; padding: 2rem; color: var(--text3); font-size: 14px; background: var(--surface); border-radius: var(--radius); border: 0.5px solid var(--border); }
+
+  /* Debug panel */
+  .debug-toggle { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; cursor: pointer; user-select: none; }
+  .debug-toggle input { cursor: pointer; accent-color: var(--blue); }
+  .debug-toggle label { font-size: 12px; color: var(--text3); cursor: pointer; }
+  .debug-panel { background: #1A1A18; border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1.5rem; display: none; }
+  .debug-panel.visible { display: block; }
+  .debug-section { margin-bottom: 1rem; }
+  .debug-section:last-child { margin-bottom: 0; }
+  .debug-label { font-size: 10px; font-weight: 600; color: #9F9F9B; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+  .debug-value { font-family: 'DM Mono', monospace; font-size: 12px; color: #E8E8E4; word-break: break-all; white-space: pre-wrap; max-height: 200px; overflow-y: auto; }
+  .debug-value.url { color: #7DD3FC; }
+  .debug-value.success { color: #86EFAC; }
+  .debug-value.error { color: #FCA5A5; }
+  .debug-copy { font-size: 11px; padding: 3px 8px; border-radius: 4px; border: 0.5px solid #444; background: #2A2A28; color: #9F9F9B; cursor: pointer; float: right; margin-top: -20px; }
+  .debug-copy:hover { color: #E8E8E4; }
+</style>
+</head>
+<body>
+<div class="dashboard">
+  <header>
+    <div class="header-left">
+      <h1>TimeDoctor Hours Dashboard</h1>
+      <div class="date-range" id="date-range">Select a date range and timezone below</div>
+    </div>
+    <div class="last-updated" id="last-updated"></div>
+  </header>
+
+  <div class="filter-bar">
+    <div class="filter-group">
+      <label>Quick select</label>
+      <div class="preset-group">
+        <button class="preset-btn" onclick="setPreset('today',this)">Today</button>
+        <button class="preset-btn" onclick="setPreset('yesterday',this)">Yesterday</button>
+        <button class="preset-btn" onclick="setPreset('week',this)">This week</button>
+        <button class="preset-btn" onclick="setPreset('month',this)">This month</button>
+      </div>
+    </div>
+    <div class="filter-group">
+      <label>From</label>
+      <div class="date-nav">
+        <button class="nav-btn" onclick="shiftDate('date-from', -1)">&#8592;</button>
+        <input type="date" id="date-from" />
+        <button class="nav-btn" onclick="shiftDate('date-from', 1)">&#8594;</button>
+      </div>
+    </div>
+    <div class="filter-group">
+      <label>To</label>
+      <div class="date-nav">
+        <button class="nav-btn" onclick="shiftDate('date-to', -1)">&#8592;</button>
+        <input type="date" id="date-to" />
+        <button class="nav-btn" onclick="shiftDate('date-to', 1)">&#8594;</button>
+      </div>
+    </div>
+    <div class="filter-group">
+      <label>Timezone</label>
+      <div class="tz-wrap">
+        <input type="text" class="tz-input" id="tz-search" placeholder="Search timezone..." autocomplete="off" />
+        <div class="tz-dropdown" id="tz-dropdown"></div>
+      </div>
+    </div>
+    <button class="fetch-btn" id="fetch-btn" onclick="fetchData()">Fetch Data</button>
+  </div>
+
+  <!-- Debug toggle -->
+  <div class="debug-toggle">
+    <input type="checkbox" id="debug-toggle" onchange="toggleDebug(this.checked)" />
+    <label for="debug-toggle">Show debug log</label>
+  </div>
+
+  <!-- Debug panel -->
+  <div class="debug-panel" id="debug-panel">
+    <div class="debug-section">
+      <div class="debug-label">Date conversion</div>
+      <div class="debug-value" id="debug-dates">Run a fetch to see conversion details</div>
+    </div>
+    <div class="debug-section">
+      <div class="debug-label">Endpoint called</div>
+      <button class="debug-copy" onclick="copyDebug('debug-url')">Copy</button>
+      <div class="debug-value url" id="debug-url">—</div>
+    </div>
+    <div class="debug-section">
+      <div class="debug-label">Raw API response</div>
+      <button class="debug-copy" onclick="copyDebug('debug-response')">Copy</button>
+      <div class="debug-value" id="debug-response">—</div>
+    </div>
+  </div>
+
+  <div class="summary-grid" id="summary-grid"></div>
+
+  <div class="toolbar">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <span class="section-label">Tracked hours by user</span>
+      <span class="user-count" id="user-count"></span>
+    </div>
+    <div class="filter-wrap">
+      <span class="filter-label">Filter:</span>
+      <select id="user-filter" onchange="applyUserFilter()"><option value="all">All users</option></select>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--bar-total)"></div>Total</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--bar-computer)"></div>Computer</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--bar-mobile)"></div>Mobile</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--bar-manual)"></div>Manual</div>
+  </div>
+
+  <div id="user-list"><div class="no-results">Select a date range and click Fetch Data to load.</div></div>
+</div>
+
+<script>
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwM6tI1C3MdxnJwdXaQYgkvOyantPldFmQHqJhZTahQv8vRRdYKDPjZtZsbK99wMFEZSw/exec";
+
+// ── All IANA Timezones ────────────────────────────────────────
+const TIMEZONES = {
+  "Africa": ["Africa/Abidjan","Africa/Accra","Africa/Addis_Ababa","Africa/Algiers","Africa/Asmara","Africa/Bamako","Africa/Bangui","Africa/Banjul","Africa/Bissau","Africa/Blantyre","Africa/Brazzaville","Africa/Bujumbura","Africa/Cairo","Africa/Casablanca","Africa/Ceuta","Africa/Conakry","Africa/Dakar","Africa/Dar_es_Salaam","Africa/Djibouti","Africa/Douala","Africa/El_Aaiun","Africa/Freetown","Africa/Gaborone","Africa/Harare","Africa/Johannesburg","Africa/Juba","Africa/Kampala","Africa/Khartoum","Africa/Kigali","Africa/Kinshasa","Africa/Lagos","Africa/Libreville","Africa/Lome","Africa/Luanda","Africa/Lubumbashi","Africa/Lusaka","Africa/Malabo","Africa/Maputo","Africa/Maseru","Africa/Mbabane","Africa/Mogadishu","Africa/Monrovia","Africa/Nairobi","Africa/Ndjamena","Africa/Niamey","Africa/Nouakchott","Africa/Ouagadougou","Africa/Porto-Novo","Africa/Sao_Tome","Africa/Tripoli","Africa/Tunis","Africa/Windhoek"],
+  "America": ["America/Adak","America/Anchorage","America/Anguilla","America/Antigua","America/Araguaina","America/Argentina/Buenos_Aires","America/Argentina/Catamarca","America/Argentina/Cordoba","America/Argentina/Jujuy","America/Argentina/La_Rioja","America/Argentina/Mendoza","America/Argentina/Rio_Gallegos","America/Argentina/Salta","America/Argentina/San_Juan","America/Argentina/San_Luis","America/Argentina/Tucuman","America/Argentina/Ushuaia","America/Aruba","America/Asuncion","America/Atikokan","America/Bahia","America/Bahia_Banderas","America/Barbados","America/Belem","America/Belize","America/Blanc-Sablon","America/Boa_Vista","America/Bogota","America/Boise","America/Cambridge_Bay","America/Campo_Grande","America/Cancun","America/Caracas","America/Cayenne","America/Cayman","America/Chicago","America/Chihuahua","America/Costa_Rica","America/Creston","America/Cuiaba","America/Curacao","America/Danmarkshavn","America/Dawson","America/Dawson_Creek","America/Denver","America/Detroit","America/Dominica","America/Edmonton","America/Eirunepe","America/El_Salvador","America/Fortaleza","America/Glace_Bay","America/Godthab","America/Goose_Bay","America/Grand_Turk","America/Grenada","America/Guadeloupe","America/Guatemala","America/Guayaquil","America/Guyana","America/Halifax","America/Havana","America/Hermosillo","America/Indiana/Indianapolis","America/Indiana/Knox","America/Indiana/Marengo","America/Indiana/Petersburg","America/Indiana/Tell_City","America/Indiana/Vevay","America/Indiana/Vincennes","America/Indiana/Winamac","America/Inuvik","America/Iqaluit","America/Jamaica","America/Juneau","America/Kentucky/Louisville","America/Kentucky/Monticello","America/Kralendijk","America/La_Paz","America/Lima","America/Los_Angeles","America/Lower_Princes","America/Maceio","America/Managua","America/Manaus","America/Marigot","America/Martinique","America/Matamoros","America/Mazatlan","America/Menominee","America/Merida","America/Metlakatla","America/Mexico_City","America/Miquelon","America/Moncton","America/Monterrey","America/Montevideo","America/Montserrat","America/Nassau","America/New_York","America/Nipigon","America/Nome","America/Noronha","America/North_Dakota/Beulah","America/North_Dakota/Center","America/North_Dakota/New_Salem","America/Ojinaga","America/Panama","America/Pangnirtung","America/Paramaribo","America/Phoenix","America/Port-au-Prince","America/Port_of_Spain","America/Porto_Velho","America/Puerto_Rico","America/Rainy_River","America/Rankin_Inlet","America/Recife","America/Regina","America/Resolute","America/Rio_Branco","America/Santa_Isabel","America/Santarem","America/Santiago","America/Santo_Domingo","America/Sao_Paulo","America/Scoresbysund","America/Sitka","America/St_Barthelemy","America/St_Johns","America/St_Kitts","America/St_Lucia","America/St_Thomas","America/St_Vincent","America/Swift_Current","America/Tegucigalpa","America/Thule","America/Thunder_Bay","America/Tijuana","America/Toronto","America/Tortola","America/Vancouver","America/Whitehorse","America/Winnipeg","America/Yakutat","America/Yellowknife"],
+  "Antarctica": ["Antarctica/Casey","Antarctica/Davis","Antarctica/DumontDUrville","Antarctica/Macquarie","Antarctica/Mawson","Antarctica/McMurdo","Antarctica/Palmer","Antarctica/Rothera","Antarctica/Syowa","Antarctica/Troll","Antarctica/Vostok"],
+  "Arctic": ["Arctic/Longyearbyen"],
+  "Asia": ["Asia/Aden","Asia/Almaty","Asia/Amman","Asia/Anadyr","Asia/Aqtau","Asia/Aqtobe","Asia/Ashgabat","Asia/Baghdad","Asia/Bahrain","Asia/Baku","Asia/Bangkok","Asia/Barnaul","Asia/Beirut","Asia/Bishkek","Asia/Brunei","Asia/Choibalsan","Asia/Chita","Asia/Colombo","Asia/Damascus","Asia/Dhaka","Asia/Dili","Asia/Dubai","Asia/Dushanbe","Asia/Gaza","Asia/Hebron","Asia/Ho_Chi_Minh","Asia/Hong_Kong","Asia/Hovd","Asia/Irkutsk","Asia/Jakarta","Asia/Jayapura","Asia/Jerusalem","Asia/Kabul","Asia/Kamchatka","Asia/Karachi","Asia/Kathmandu","Asia/Khandyga","Asia/Kolkata","Asia/Krasnoyarsk","Asia/Kuala_Lumpur","Asia/Kuching","Asia/Kuwait","Asia/Macau","Asia/Magadan","Asia/Makassar","Asia/Manila","Asia/Muscat","Asia/Nicosia","Asia/Novokuznetsk","Asia/Novosibirsk","Asia/Omsk","Asia/Oral","Asia/Phnom_Penh","Asia/Pontianak","Asia/Pyongyang","Asia/Qatar","Asia/Qyzylorda","Asia/Rangoon","Asia/Riyadh","Asia/Sakhalin","Asia/Samarkand","Asia/Seoul","Asia/Shanghai","Asia/Singapore","Asia/Srednekolymsk","Asia/Taipei","Asia/Tashkent","Asia/Tbilisi","Asia/Tehran","Asia/Thimphu","Asia/Tokyo","Asia/Tomsk","Asia/Ulaanbaatar","Asia/Urumqi","Asia/Ust-Nera","Asia/Vientiane","Asia/Vladivostok","Asia/Yakutsk","Asia/Yekaterinburg","Asia/Yerevan"],
+  "Atlantic": ["Atlantic/Azores","Atlantic/Bermuda","Atlantic/Canary","Atlantic/Cape_Verde","Atlantic/Faroe","Atlantic/Madeira","Atlantic/Reykjavik","Atlantic/South_Georgia","Atlantic/St_Helena","Atlantic/Stanley"],
+  "Australia": ["Australia/Adelaide","Australia/Brisbane","Australia/Broken_Hill","Australia/Currie","Australia/Darwin","Australia/Eucla","Australia/Hobart","Australia/Lindeman","Australia/Lord_Howe","Australia/Melbourne","Australia/Perth","Australia/Sydney"],
+  "Europe": ["Europe/Amsterdam","Europe/Andorra","Europe/Astrakhan","Europe/Athens","Europe/Belgrade","Europe/Berlin","Europe/Bratislava","Europe/Brussels","Europe/Bucharest","Europe/Budapest","Europe/Busingen","Europe/Chisinau","Europe/Copenhagen","Europe/Dublin","Europe/Gibraltar","Europe/Guernsey","Europe/Helsinki","Europe/Isle_of_Man","Europe/Istanbul","Europe/Jersey","Europe/Kaliningrad","Europe/Kiev","Europe/Kirov","Europe/Lisbon","Europe/Ljubljana","Europe/London","Europe/Luxembourg","Europe/Madrid","Europe/Malta","Europe/Mariehamn","Europe/Minsk","Europe/Monaco","Europe/Moscow","Europe/Nicosia","Europe/Oslo","Europe/Paris","Europe/Podgorica","Europe/Prague","Europe/Riga","Europe/Rome","Europe/Samara","Europe/San_Marino","Europe/Sarajevo","Europe/Simferopol","Europe/Skopje","Europe/Sofia","Europe/Stockholm","Europe/Tallinn","Europe/Tirane","Europe/Ulyanovsk","Europe/Uzhgorod","Europe/Vaduz","Europe/Vatican","Europe/Vienna","Europe/Vilnius","Europe/Volgograd","Europe/Warsaw","Europe/Zagreb","Europe/Zaporozhye","Europe/Zurich"],
+  "Indian": ["Indian/Antananarivo","Indian/Chagos","Indian/Christmas","Indian/Cocos","Indian/Comoro","Indian/Kerguelen","Indian/Mahe","Indian/Maldives","Indian/Mauritius","Indian/Mayotte","Indian/Reunion"],
+  "Pacific": ["Pacific/Apia","Pacific/Auckland","Pacific/Bougainville","Pacific/Chatham","Pacific/Chuuk","Pacific/Easter","Pacific/Efate","Pacific/Enderbury","Pacific/Fakaofo","Pacific/Fiji","Pacific/Funafuti","Pacific/Galapagos","Pacific/Gambier","Pacific/Guadalcanal","Pacific/Guam","Pacific/Honolulu","Pacific/Johnston","Pacific/Kiritimati","Pacific/Kosrae","Pacific/Kwajalein","Pacific/Majuro","Pacific/Marquesas","Pacific/Midway","Pacific/Nauru","Pacific/Niue","Pacific/Norfolk","Pacific/Noumea","Pacific/Pago_Pago","Pacific/Palau","Pacific/Pitcairn","Pacific/Pohnpei","Pacific/Port_Moresby","Pacific/Rarotonga","Pacific/Saipan","Pacific/Tahiti","Pacific/Tarawa","Pacific/Tongatapu","Pacific/Wake","Pacific/Wallis"],
+  "UTC": ["UTC"]
+};
+
+// ── Get UTC offset string for a timezone ──────────────────────
+function getUTCOffset(tz) {
+  try {
+    const now = new Date();
+    const utcDate  = new Date(now.toLocaleString("en-US", { timeZone: "UTC" }));
+    const tzDate   = new Date(now.toLocaleString("en-US", { timeZone: tz }));
+    const diffMins = Math.round((tzDate - utcDate) / 60000);
+    const sign  = diffMins >= 0 ? "+" : "-";
+    const abs   = Math.abs(diffMins);
+    const h     = Math.floor(abs / 60);
+    const m     = abs % 60;
+    return m > 0 ? `UTC${sign}${h}:${String(m).padStart(2,"0")}` : `UTC${sign}${h}`;
+  } catch { return "UTC"; }
+}
+
+// ── Convert local date (YYYY-MM-DD) to UTC ISO string ─────────
+function localDateToUTC(dateStr, tz, endOfDay = false) {
+  // Get the TZ offset in minutes by comparing UTC vs TZ at midday
+  const [year, month, day] = dateStr.split("-").map(Number);
+
+  // Use a fixed UTC time to measure the offset accurately
+  const probe = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  const tzStr = probe.toLocaleString("en-US", {
+    timeZone: tz,
+    hour12: false,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit"
+  });
+
+  // Parse the TZ local time string back to a Date
+  const [datePart, timePart] = tzStr.split(", ");
+  const [mm, dd, yyyy] = datePart.split("/").map(Number);
+  const [hh, mi, ss]   = timePart.split(":").map(Number);
+  const tzLocal = Date.UTC(yyyy, mm - 1, dd, hh === 24 ? 0 : hh, mi, ss);
+  const offsetMinutes = Math.round((tzLocal - probe.getTime()) / 60000);
+
+  // Build the target UTC time
+  const seconds = endOfDay ? 86399 : 0; // 23:59:59 or 00:00:00
+  const targetUTC = Date.UTC(year, month - 1, day, 0, 0, seconds) - (offsetMinutes * 60000);
+  const result = new Date(targetUTC);
+
+  const pad = n => String(n).padStart(2, "0");
+  return `${result.getUTCFullYear()}-${pad(result.getUTCMonth()+1)}-${pad(result.getUTCDate())}` +
+         `T${pad(result.getUTCHours())}:${pad(result.getUTCMinutes())}:${pad(result.getUTCSeconds())}`;
+}
+
+let selectedTZ  = "Asia/Manila";
+let allUsers    = [];
+let maxTotalAll = 0;
+
+// ── Build timezone dropdown ───────────────────────────────────
+function buildTZDropdown() {
+  const dd = document.getElementById("tz-dropdown");
+  dd.innerHTML = "";
+  Object.entries(TIMEZONES).forEach(([region, zones]) => {
+    const groupLabel = document.createElement("div");
+    groupLabel.className = "tz-group-label";
+    groupLabel.textContent = region;
+    groupLabel.dataset.region = region;
+    dd.appendChild(groupLabel);
+    zones.forEach(tz => {
+      const offset = getUTCOffset(tz);
+      const opt = document.createElement("div");
+      opt.className = "tz-option" + (tz === selectedTZ ? " selected" : "");
+      opt.dataset.tz = tz;
+      opt.dataset.region = region;
+      opt.innerHTML = `<span>${tz}</span><span class="tz-utc">${offset}</span>`;
+      opt.addEventListener("mousedown", () => selectTZ(tz, offset));
+      dd.appendChild(opt);
+    });
+  });
+}
+
+function selectTZ(tz, offset) {
+  selectedTZ = tz;
+  offset = offset || getUTCOffset(tz);
+  document.getElementById("tz-search").value = `${tz} (${offset})`;
+  document.getElementById("tz-dropdown").classList.remove("open");
+  document.querySelectorAll(".tz-option").forEach(o => o.classList.toggle("selected", o.dataset.tz === tz));
+}
+
+function filterTZ(query) {
+  const q = query.toLowerCase().replace(/\s*\(utc.*\)/i, "").trim();
+  const visibleRegions = new Set();
+  document.querySelectorAll(".tz-option").forEach(o => {
+    const match = o.dataset.tz.toLowerCase().includes(q);
+    o.classList.toggle("hidden", !match);
+    if (match) visibleRegions.add(o.dataset.region);
+  });
+  document.querySelectorAll(".tz-group-label").forEach(l => {
+    l.style.display = visibleRegions.has(l.dataset.region) ? "" : "none";
+  });
+}
+
+// ── Date helpers ──────────────────────────────────────────────
+function toTZDateStr(date, tz) {
+  return date.toLocaleDateString("en-CA", { timeZone: tz });
+}
+
+function setPreset(preset, btn) {
+  document.querySelectorAll(".preset-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  const now   = new Date();
+  const today = toTZDateStr(now, selectedTZ);
+  const yest  = toTZDateStr(new Date(now - 86400000), selectedTZ);
+  const tzNow = new Date(now.toLocaleString("en-US", { timeZone: selectedTZ }));
+  const dow   = tzNow.getDay();
+  const wStart = new Date(tzNow);
+  wStart.setDate(tzNow.getDate() - (dow === 0 ? 6 : dow - 1));
+  const weekStart  = wStart.toLocaleDateString("en-CA");
+  const monthStart = new Date(tzNow.getFullYear(), tzNow.getMonth(), 1).toLocaleDateString("en-CA");
+
+  const from = document.getElementById("date-from");
+  const to   = document.getElementById("date-to");
+  switch (preset) {
+    case "today":     from.value = today;      to.value = today;      break;
+    case "yesterday": from.value = yest;       to.value = yest;       break;
+    case "week":      from.value = weekStart;  to.value = today;      break;
+    case "month":     from.value = monthStart; to.value = today;      break;
+  }
+}
+
+// ── Fetch ─────────────────────────────────────────────────────
+async function fetchData() {
+  const fromDate = document.getElementById("date-from").value;
+  const toDate   = document.getElementById("date-to").value;
+
+  if (!fromDate || !toDate) { alert("Please select both From and To dates."); return; }
+  if (fromDate > toDate)    { alert("From date cannot be after To date."); return; }
+
+  // ✅ Convert selected TZ dates to UTC for the API
+  const fromUTC = localDateToUTC(fromDate, selectedTZ, false); // Start of day in TZ → UTC
+  const toUTC   = localDateToUTC(toDate,   selectedTZ, true);  // End of day in TZ → UTC
+
+  const btn = document.getElementById("fetch-btn");
+  btn.disabled = true;
+  btn.textContent = "Loading...";
+  document.getElementById("user-list").innerHTML = `<div class="loading"><span class="spinner"></span>Fetching data...</div>`;
+  document.getElementById("summary-grid").innerHTML = "";
+
+  try {
+    const url = `${WEB_APP_URL}?from=${encodeURIComponent(fromUTC)}&to=${encodeURIComponent(toUTC)}&timezone=UTC`;
+
+    // Debug logging
+    const offset = getUTCOffset(selectedTZ);
+    document.getElementById("debug-dates").textContent =
+      `Selected timezone : ${selectedTZ} (${offset})\n` +
+      `Selected from     : ${fromDate} 00:00:00 local\n` +
+      `Selected to       : ${toDate} 23:59:59 local\n` +
+      `Converted from UTC: ${fromUTC}\n` +
+      `Converted to UTC  : ${toUTC}`;
+    document.getElementById("debug-url").textContent = url;
+    document.getElementById("debug-response").textContent = "Waiting for response...";
+    document.getElementById("debug-response").className = "debug-value";
+
+    const res  = await fetch(url);
+    if (!res.ok) throw new Error("Request failed: " + res.status);
+    const json = await res.json();
+
+    // Log raw response
+    document.getElementById("debug-response").textContent = JSON.stringify(json, null, 2);
+    document.getElementById("debug-response").className = "debug-value success";
+
+    allUsers = (json.data || [])
+      .filter(u => u.userName && !u.userArchived)
+      .map(u => ({
+        userId:        u.userId || "",
+        name:          u.userName || "",
+        computer:      u.computer || 0,
+        mobile:        u.mobile || 0,
+        manual:        u.manual || 0,
+        offcomputer:   u.offcomputer || 0,
+        total:         u.total || 0,
+        computerRatio: u.computerRatio || 0,
+        paidBreak:     u.paidBreak || 0,
+        unpaidBreak:   u.unpaidBreak || 0,
+        paidLeave:     u.paidLeave || 0,
+      }))
+      .sort((a, b) => b.total - a.total);
+
+    maxTotalAll = Math.max(...allUsers.map(u => u.total), 1);
+
+    document.getElementById("date-range").textContent =
+      `${fromDate} → ${toDate}  ·  ${selectedTZ} (${getUTCOffset(selectedTZ)})  ·  API: ${fromUTC} → ${toUTC} UTC`;
+
+    const nowStr = new Date().toLocaleString("en-US", { timeZone: selectedTZ, dateStyle: "medium", timeStyle: "short" });
+    document.getElementById("last-updated").innerHTML = `Last refreshed<br>${nowStr}`;
+
+    populateUserDropdown(allUsers);
+    renderSummary(allUsers);
+    renderUsers(allUsers);
+
+  } catch (err) {
+    document.getElementById("debug-response").textContent = err.message;
+    document.getElementById("debug-response").className = "debug-value error";
+    document.getElementById("user-list").innerHTML = `<div class="error-msg">Error: ${err.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Fetch Data";
+  }
+}
+
+// ── Render ────────────────────────────────────────────────────
+function fmtH(s)    { return (s / 3600).toFixed(1) + "h"; }
+function fmtTime(s) {
+  if (!s) return "00:00:00";
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  return `${h}:${String(m).padStart(2,"0")}:${String(sec).padStart(2,"0")}`;
+}
+function pct(val, max) { return max === 0 ? 0 : Math.min(100, Math.round((val / max) * 100)); }
+
+function renderSummary(users) {
+  const totalAll  = users.reduce((a,u) => a + u.total, 0);
+  const totalComp = users.reduce((a,u) => a + u.computer, 0);
+  const avgRatio  = totalAll > 0 ? Math.round((totalComp / totalAll) * 100) : 0;
+  const top = users[0];
+  document.getElementById("summary-grid").innerHTML = [
+    { label: "Total tracked",       value: fmtH(totalAll) },
+    { label: "Team members",        value: users.length },
+    { label: "Avg computer ratio",  value: avgRatio + "%" },
+    { label: "Top performer",       value: top ? top.name.split(" ")[0] : "-" },
+  ].map(c => `<div class="metric"><div class="metric-label">${c.label}</div><div class="metric-value">${c.value}</div></div>`).join("");
+}
+
+function renderUsers(users) {
+  const list = document.getElementById("user-list");
+  list.innerHTML = "";
+  document.getElementById("user-count").textContent = `${users.length} user${users.length !== 1 ? "s" : ""}`;
+
+  if (!users.length) { list.innerHTML = `<div class="no-results">No data found for this date range.</div>`; return; }
+
+  users.forEach((u, i) => {
+    const compPct   = u.total > 0 ? Math.round((u.computer / u.total) * 100) : 0;
+    const pillClass = compPct >= 80 ? "pill-green" : compPct >= 50 ? "pill-amber" : "pill-red";
+    const id        = `det-${i}`;
+    const card = document.createElement("div");
+    card.className = "user-card";
+    card.innerHTML = `
+      <div class="user-header">
+        <div class="user-name-wrap">
+          <span class="user-name">${u.name}</span>
+          <span class="pill ${pillClass}">${compPct}% computer</span>
+        </div>
+        <div class="user-right">
+          <span class="user-total">${fmtTime(u.total)}</span>
+          <button class="toggle-btn" onclick="toggleDetail('${id}',this)">details ▾</button>
+        </div>
+      </div>
+      <div class="bar-group">
+        <div class="bar-meta"><span class="bar-name">Total hours</span><span class="bar-time">${fmtH(u.total)}</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct(u.total,maxTotalAll)}%;background:var(--bar-total)"></div></div>
+      </div>
+      <div class="bar-group">
+        <div class="bar-meta"><span class="bar-name">Computer</span><span class="bar-time">${fmtH(u.computer)}</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct(u.computer,u.total)}%;background:var(--bar-computer)"></div></div>
+      </div>
+      <div class="bar-group">
+        <div class="bar-meta"><span class="bar-name">Mobile</span><span class="bar-time">${fmtH(u.mobile)}</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct(u.mobile,u.total)}%;background:var(--bar-mobile)"></div></div>
+      </div>
+      <div class="bar-group">
+        <div class="bar-meta"><span class="bar-name">Manual</span><span class="bar-time">${fmtH(u.manual)}</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct(u.manual,u.total)}%;background:var(--bar-manual)"></div></div>
+      </div>
+      <div class="detail-grid" id="${id}" style="display:none;">
+        <div class="detail-item"><div class="detail-val">${fmtH(u.offcomputer)}</div><div class="detail-lbl">Off computer</div></div>
+        <div class="detail-item"><div class="detail-val">${fmtH(u.paidBreak)}</div><div class="detail-lbl">Paid break</div></div>
+        <div class="detail-item"><div class="detail-val">${fmtH(u.unpaidBreak)}</div><div class="detail-lbl">Unpaid break</div></div>
+        <div class="detail-item"><div class="detail-val">${fmtH(u.paidLeave)}</div><div class="detail-lbl">Paid leave</div></div>
+        <div class="detail-item"><div class="detail-val">${fmtTime(u.total)}</div><div class="detail-lbl">Total (HH:MM:SS)</div></div>
+        <div class="detail-item"><div class="detail-val">${compPct}%</div><div class="detail-lbl">Computer ratio</div></div>
+      </div>`;
+    list.appendChild(card);
+  });
+}
+
+function populateUserDropdown(users) {
+  const sel = document.getElementById("user-filter");
+  sel.innerHTML = `<option value="all">All users (${users.length})</option>`;
+  users.forEach(u => { const o = document.createElement("option"); o.value = u.name; o.textContent = u.name; sel.appendChild(o); });
+}
+
+function applyUserFilter() {
+  const val = document.getElementById("user-filter").value;
+  const filtered = val === "all" ? allUsers : allUsers.filter(u => u.name === val);
+  renderSummary(filtered);
+  renderUsers(filtered);
+}
+
+function shiftDate(inputId, days) {
+  const input = document.getElementById(inputId);
+  if (!input.value) return;
+  const [year, month, day] = input.value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day + days));
+  const pad  = n => String(n).padStart(2, "0");
+  input.value = `${date.getUTCFullYear()}-${pad(date.getUTCMonth()+1)}-${pad(date.getUTCDate())}`;
+}
+
+function toggleDebug(on) {
+  document.getElementById("debug-panel").classList.toggle("visible", on);
+}
+
+function copyDebug(id) {
+  const text = document.getElementById(id).textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.target;
+    btn.textContent = "Copied!";
+    setTimeout(() => btn.textContent = "Copy", 1500);
+  });
+}
+
+function toggleDetail(id, btn) {
+  const el = document.getElementById(id);
+  const open = el.style.display === "grid";
+  el.style.display = open ? "none" : "grid";
+  btn.textContent = open ? "details ▾" : "hide ▴";
+}
+
+// ── Init ──────────────────────────────────────────────────────
+document.addEventListener("DOMContentLoaded", () => {
+  buildTZDropdown();
+  const offset = getUTCOffset(selectedTZ);
+  document.getElementById("tz-search").value = `${selectedTZ} (${offset})`;
+
+  const input = document.getElementById("tz-search");
+  const dd    = document.getElementById("tz-dropdown");
+  input.addEventListener("focus", () => { filterTZ(""); dd.classList.add("open"); });
+  input.addEventListener("blur",  () => setTimeout(() => dd.classList.remove("open"), 200));
+  input.addEventListener("input", () => { filterTZ(input.value); dd.classList.add("open"); });
+
+  const today = toTZDateStr(new Date(), selectedTZ);
+  document.getElementById("date-from").value = today;
+  document.getElementById("date-to").value   = today;
+});
+</script>
+</body>
+</html>
